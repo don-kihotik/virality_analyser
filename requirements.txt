@@ -1,0 +1,8 @@
+streamlit
+pandas
+numpy
+scikit-learn
+openai
+google-api-python-client
+# pyngrok # Uncomment if pyngrok is still needed in your deployed environment
+# tabulate # Uncomment if you rely on to_markdown() without pre-installing tabulate
