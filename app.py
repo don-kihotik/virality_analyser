@@ -7,26 +7,23 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import LatentDirichletAllocation
 import openai
 import googleapiclient.discovery
-# Assuming google.colab.userdata is available or replace with environment variables for deployment
-from google.colab import userdata
+import os
 import time
 import threading
-import ngrok
+# ngrok import has been removed
 
+# --- Helper Functions ---
 
-# --- Helper Functions (Copied from previous steps) ---
+def get_secret(key):
+    # Streamlit secrets have highest priority, then env variable, then None
+    return st.secrets.get(key) if key in st.secrets else os.environ.get(key)
 
 def search_youtube_videos(query, n_results):
     """Searches YouTube for a given query and retrieves metadata for the top N videos."""
     try:
-        # For deployment, it's better to use environment variables or a dedicated secrets manager
-        # rather than google.colab.userdata. This is a placeholder for Colab demo.
-        api_key = userdata.get('YOUTUBE_API_KEY') # Replace with secure method for deployment
+        api_key = get_secret('YOUTUBE_API_KEY')  # Use Streamlit secrets or environment variable
         if not api_key:
-            # In a deployed Streamlit app, you might use st.secrets or environment variables
-            # st.error("YouTube API key not found. Please set it.")
-            # For Colab demo, returning empty list
-            print("YouTube API key not found. Please set it in Colab secrets or environment variables.")
+            st.error("YouTube API key not found. Please set it in Streamlit secrets.")
             return []
         youtube = googleapiclient.discovery.build('youtube', 'v3', developerKey=api_key)
 
@@ -66,11 +63,8 @@ def search_youtube_videos(query, n_results):
         return video_data
 
     except Exception as e:
-        # In Streamlit, you would use st.error
-        # st.error(f"Error searching YouTube videos: {e}")
-        print(f"Error searching YouTube videos: {e}")
+        st.error(f"Error searching YouTube videos: {e}")
         return []
-
 
 def calculate_virality_score(df):
     """Calculates a virality score for each video based on engagement metrics."""
@@ -128,7 +122,6 @@ def detect_topic_trends(df):
     if n_topics < 1:
          return {"Topic Trends": ["Could not detect topic trends (insufficient features for LDA)."]}
 
-
     lda = LatentDirichletAllocation(n_components=n_topics, random_state=42)
     lda.fit(tfidf_matrix)
 
@@ -139,7 +132,6 @@ def detect_topic_trends(df):
         detected_topics[f"Topic #{topic_idx}"] = top_keywords
 
     return detected_topics
-
 
 def generate_naming_suggestions(df):
     """Generates naming suggestions based on analysis of high-virality video titles using OpenAI."""
@@ -153,14 +145,12 @@ def generate_naming_suggestions(df):
     if not titles_to_analyze:
         return ["No titles found in high virality videos for analysis."]
 
-    prompt = f"Analyze these YouTube video titles for common patterns, keywords, and styles that likely contribute to their high virality. Based on this analysis, suggest 5 creative and potentially viral title ideas for a video on a similar topic:\n\nTitles:\n{'- ' + chr(10).join(titles_to_analyze)}\n\nSuggestions:"
+    prompt = f"Analyze these YouTube video titles for common patterns, keywords, and styles that likely contribute to their high virality. Based on this analysis, suggest 5 creative and potentially viral new YouTube video titles for the same topic:\n\n" + "\n".join(titles_to_analyze)
 
     try:
-        # For deployment, use st.secrets or environment variables
-        openai_api_key = userdata.get('OPENAI_API_KEY') # Replace with secure method for deployment
+        openai_api_key = get_secret('OPENAI_API_KEY')  # Use Streamlit secrets or environment variable
         if not openai_api_key:
-            # st.error("OpenAI API key is not set.")
-            print("OpenAI API key is not set. Please set it in Colab secrets or environment variables.")
+            st.error("OpenAI API key is not set.")
             return ["OpenAI API key is not set."]
         openai.api_key = openai_api_key
 
@@ -180,10 +170,8 @@ def generate_naming_suggestions(df):
         return suggestions if suggestions else ["Could not generate naming suggestions."]
 
     except Exception as e:
-        # st.error(f"Error generating naming suggestions: {e}")
-        print(f"Error generating naming suggestions: {e}")
+        st.error(f"Error generating naming suggestions: {e}")
         return [f"Error generating naming suggestions: {e}"]
-
 
 def generate_positioning_advice(df):
     """Provides positioning advice based on analysis of high-performing videos using OpenAI."""
@@ -196,17 +184,14 @@ def generate_positioning_advice(df):
     if not all_text:
          return ["No text data available in high virality videos for analysis."]
 
-    prompt = f"Analyze the following text data from high-virality YouTube videos on a specific topic. Identify recurring themes, keywords, and general strategies evident in the descriptions and tags. Based on this analysis, provide specific positioning advice for a new video aiming for similar virality. Consider aspects like target audience, key benefits to highlight, tag strategy, and content format.\n\nText Data:\n{all_text}\n\nPositioning Advice:"
+    prompt = f"Analyze the following text data from high-virality YouTube videos on a specific topic. Identify recurring themes, keywords, and general strategies evident in the descriptions and tags. Based on this, suggest positioning, messaging, and content strategies for future videos on this topic:\n\n{all_text}"
 
     try:
-        # For deployment, use st.secrets or environment variables
-        openai_api_key = userdata.get('OPENAI_API_KEY') # Replace with secure method for deployment
+        openai_api_key = get_secret('OPENAI_API_KEY')  # Use Streamlit secrets or environment variable
         if not openai_api_key:
-            # st.error("OpenAI API key is not set.")
-            print("OpenAI API key is not set. Please set it in Colab secrets or environment variables.")
+            st.error("OpenAI API key is not set.")
             return ["OpenAI API key is not set."]
         openai.api_key = openai_api_key
-
 
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -224,10 +209,8 @@ def generate_positioning_advice(df):
         return advice if advice else ["Could not generate positioning advice."]
 
     except Exception as e:
-        # st.error(f"Error generating positioning advice: {e}")
-        print(f"Error generating positioning advice: {e}")
+        st.error(f"Error generating positioning advice: {e}")
         return [f"Error generating positioning advice: {e}"]
-
 
 def generate_report(df, naming_suggestions, positioning_advice, detected_topics):
     """Generates a readable report summarizing the video analysis and recommendations in Markdown format."""
@@ -235,9 +218,6 @@ def generate_report(df, naming_suggestions, positioning_advice, detected_topics)
 
     report += "### Overview of Analysis\n"
     report += f"- Number of videos analyzed: {len(df)}\n"
-    # Add topic based on input
-    # report += f"- Topic analyzed: {topic}\n\n"
-
 
     report += "### Video Data Overview\n"
     if not df.empty:
@@ -263,7 +243,6 @@ def generate_report(df, naming_suggestions, positioning_advice, detected_topics)
     else:
         report += "No video data available.\n"
     report += "\n"
-
 
     report += "### Key Findings from Virality Analysis\n"
     if not df.empty and 'virality_score' in df.columns:
@@ -295,7 +274,6 @@ def generate_report(df, naming_suggestions, positioning_advice, detected_topics)
                 report += f"  - Cluster {cluster}: Avg Views={means.get('view_count', 0):.0f}, Avg Likes={means.get('like_count', 0):.0f}, Avg Comments={means.get('comment_count', 0):.0f}, Avg Virality={means.get('virality_score', 0):.2f}\n"
         else:
             report += " - Insufficient numeric data for detailed cluster characteristics.\n"
-
     else:
         report += "- Cluster analysis not performed or no data available.\n"
     report += "\n"
@@ -307,7 +285,6 @@ def generate_report(df, naming_suggestions, positioning_advice, detected_topics)
     else:
         report += "- Could not detect topic trends.\n"
     report += "\n"
-
 
     report += "### Generated Naming Suggestions\n"
     if naming_suggestions:
@@ -326,7 +303,6 @@ def generate_report(df, naming_suggestions, positioning_advice, detected_topics)
     report += "\n"
 
     return report
-
 
 def youtube_analysis_agent(query, n_results):
     """
@@ -361,7 +337,6 @@ def youtube_analysis_agent(query, n_results):
 
     return analysis_report
 
-
 # --- Streamlit App Layout ---
 st.title("YouTube Content Analysis Agent")
 
@@ -378,15 +353,9 @@ if st.button("Analyze"):
     else:
         # Use st.spinner to show a loading message during analysis
         with st.spinner("Analyzing... This might take a few moments."):
-            # Set API keys securely before running the analysis
-            # In a deployed environment, use environment variables or a secrets manager
-            # For Colab demo, we might retrieve from userdata.get() here
             try:
-                 # Ensure API keys are set (handled within the helper functions)
-
                  report = youtube_analysis_agent(topic, n_results)
-                 if report: # Display report only if not empty
-                     st.markdown(report) # 4. Display the report in Markdown
-
+                 if report:
+                     st.markdown(report)
             except Exception as e:
                 st.error(f"An unexpected error occurred during analysis: {e}")
