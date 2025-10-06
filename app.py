@@ -10,6 +10,7 @@ import googleapiclient.discovery
 import os
 import time
 import threading
+import tabulate
 # ngrok import has been removed
 
 # --- Helper Functions ---
